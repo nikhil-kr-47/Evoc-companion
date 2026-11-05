@@ -1,0 +1,114 @@
+[
+  {
+    "referenceId": "EVOC-CMP-4987492",
+    "businessName": "Apex Test Studio",
+    "contactPerson": "Nikhil Kumar",
+    "phoneNumber": "9876543210",
+    "email": "test@apexstudio.com",
+    "objective": "LEADS",
+    "businessType": "Education & EdTech",
+    "subCategory": "Coaching Institutes & Tuitions",
+    "hasWebsite": true,
+    "websiteUrl": "https://apexstudio.com",
+    "websiteAnalysis": null,
+    "businessDescription": "Premium coaching for competitive entrance exams",
+    "audience": {
+      "ageRanges": [
+        "18-24",
+        "25-34"
+      ],
+      "gender": "ALL",
+      "locationType": "TIER_1",
+      "selectedCities": [
+        "Delhi-NCR",
+        "Bengaluru"
+      ],
+      "interests": [
+        "Higher Education"
+      ]
+    },
+    "payment": {
+      "status": "PAID",
+      "method": "UPI",
+      "transactionId": "TXN_TEST_VERIFIED",
+      "amount": 1178.82
+    },
+    "adAccountStatus": {
+      "isReady": true,
+      "accountId": "act_9988776655",
+      "accessGranted": true
+    },
+    "creativePreference": {
+      "choice": "DONE_BY_US",
+      "uploadedFiles": [],
+      "adNotes": "Focus on high conversion rates"
+    },
+    "createdAt": "2026-11-05T11:33:14.987Z"
+  },
+  {
+    "referenceId": "ORB-ADS-2318954",
+    "businessName": "abcd",
+    "contactPerson": "Test",
+    "phoneNumber": "7571892183",
+    "email": "nk47nikhilkumar@gmail.com",
+    "objective": "LEADS",
+    "businessType": "Education, EdTech & Coaching",
+    "subCategory": "Study Abroad & Immigration",
+    "hasWebsite": true,
+    "websiteUrl": "https://app.evoclabs.com",
+    "websiteAnalysis": {
+      "domain": "app.evoclabs.com",
+      "brandName": "App",
+      "title": "EVOC LABS",
+      "description": "Dashboard Analytics - Powered by Evoc Labs",
+      "brandVibe": "Modern Direct-To-Consumer (D2C)",
+      "detectedKeywords": [
+        "Featured Products",
+        "Best Sellers",
+        "Exclusive Offerings"
+      ],
+      "adAngles": [
+        "Hero Hook: Highlight App's unmatched quality and customer-first guarantee",
+        "Social Proof: Feature top customer reviews and unboxing clips",
+        "Urgency / Offer: Inaugural launch discount and Free Shipping incentives"
+      ]
+    },
+    "businessDescription": "",
+    "audience": {
+      "ageRanges": [
+        "25-34",
+        "35-44"
+      ],
+      "gender": "ALL",
+      "locationType": "TIER_1",
+      "selectedCities": [
+        "Mumbai",
+        "Delhi-NCR",
+        "Bengaluru"
+      ],
+      "interests": [
+        "Online Shopping",
+        "Luxury Goods & High-End Brands"
+      ]
+    },
+    "payment": {
+      "status": "PAID",
+      "method": "NETBANKING",
+      "transactionId": "TXN_ORB_N46F2XH",
+      "amount": 1178.82
+    },
+    "adAccountStatus": {
+      "isReady": false,
+      "accountId": "",
+      "accessGranted": false,
+      "needAssistance": true
+    },
+    "creativePreference": {
+      "choice": "DONE_BY_US",
+      "uploadedFiles": [],
+      "adNotes": "",
+      "requestedService": true
+    },
+    "createdAt": "2026-11-05T09:23:12.318Z"
+  }
+]
