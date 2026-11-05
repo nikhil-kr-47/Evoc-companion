@@ -13,8 +13,15 @@ import {
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
-  const rawPhone = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "919548833953";
-  const whatsappPhone = rawPhone.replace(/\D/g, "");
+  const rawPhone = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
+  const whatsappPhone = rawPhone ? rawPhone.replace(/\D/g, "") : null;
+
+  const handleWhatsAppClick = (e: React.MouseEvent) => {
+    if (!whatsappPhone) {
+      e.preventDefault();
+      alert("Configuration Error: NEXT_PUBLIC_WHATSAPP_NUMBER environment variable is not configured.");
+    }
+  };
 
   return (
     <footer className="w-full border-t border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/80 transition-colors mt-auto">
@@ -108,8 +115,9 @@ export default function Footer() {
               <span>contact@evoclabs.com</span>
             </a>
             <a
-              href={`https://wa.me/${whatsappPhone}?text=Hi%20Evoc%20Team,%20I%20have%20a%20question%20about%20Evoc%20Companion.`}
-              target="_blank"
+              href={whatsappPhone ? `https://wa.me/${whatsappPhone}?text=Hi%20Evoc%20Team,%20I%20have%20a%20question%20about%20Evoc%20Companion.` : "#"}
+              onClick={handleWhatsAppClick}
+              target={whatsappPhone ? "_blank" : undefined}
               rel="noreferrer"
               className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 hover:text-emerald-600 transition-colors font-medium text-[11px]"
             >

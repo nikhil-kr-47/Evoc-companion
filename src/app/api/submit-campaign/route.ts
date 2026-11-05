@@ -59,14 +59,16 @@ export async function POST(req: Request) {
     }
 
     // 2. Sync to Orbit backend / admin CRM leads
-    const orbitApiUrls = [
-      process.env.ORBIT_API_URL || "",
-      "http://127.0.0.1:3000/api/leads",
-      "http://127.0.0.1:3001/api/leads",
-      "http://127.0.0.1:5001/api/leads",
-      "http://127.0.0.1:5000/api/leads",
-      "https://api.evoclabs.com/api/leads",
-    ].filter(Boolean);
+    const orbitApiUrl = process.env.ORBIT_API_URL;
+    if (!orbitApiUrl) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Configuration Error: ORBIT_API_URL environment variable is not configured.",
+        },
+        { status: 500 }
+      );
+    }
 
     let orbitSynced = false;
     let orbitLeadId = null;
@@ -93,29 +95,29 @@ export async function POST(req: Request) {
       },
     };
 
-    for (const url of orbitApiUrls) {
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 2500);
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 6000);
 
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(orbitPayload),
-          signal: controller.signal,
-        });
-        clearTimeout(timeout);
+      const res = await fetch(orbitApiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orbitPayload),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
 
-        if (res.ok) {
-          const resData = await res.json().catch(() => ({}));
-          orbitSynced = true;
-          orbitLeadId = resData.id || resData.data?.id || null;
-          console.log(`[submit-campaign] Successfully synced to Orbit CRM at ${url}`);
-          break;
-        }
-      } catch (e) {
-        // Continue fallback attempts
+      if (res.ok) {
+        const resData = await res.json().catch(() => ({}));
+        orbitSynced = true;
+        orbitLeadId = resData.id || resData.data?.id || null;
+        console.log(`[submit-campaign] Successfully synced to Orbit CRM at ${orbitApiUrl}`);
+      } else {
+        const errText = await res.text().catch(() => "");
+        console.warn(`[submit-campaign] Orbit API error response (${res.status}):`, errText);
       }
+    } catch (e: any) {
+      console.error(`[submit-campaign] Failed to reach ORBIT_API_URL (${orbitApiUrl}):`, e.message);
     }
 
     return NextResponse.json({

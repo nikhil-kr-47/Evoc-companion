@@ -57,11 +57,13 @@ export default function Step8Success({ referenceId, data, onReset }: Step8Props)
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const rawPhone = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "919548833953";
-  const whatsappPhone = rawPhone.replace(/\D/g, "");
-  const whatsappUrl = `https://wa.me/${whatsappPhone}?text=Hi%20Evoc%20Team,%20I%20just%20submitted%20campaign%20intake%20with%20Ref%20ID:%20${referenceId}.%20Business:%20${encodeURIComponent(
-    data.businessName || "My Business"
-  )}`;
+  const rawPhone = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
+  const whatsappPhone = rawPhone ? rawPhone.replace(/\D/g, "") : null;
+  const whatsappUrl = whatsappPhone
+    ? `https://wa.me/${whatsappPhone}?text=Hi%20Evoc%20Team,%20I%20just%20submitted%20campaign%20intake%20with%20Ref%20ID:%20${referenceId}.%20Business:%20${encodeURIComponent(
+        data.businessName || "My Business"
+      )}`
+    : null;
 
   return (
     <div className="w-full max-w-xl mx-auto text-center animate-slide-up">
@@ -141,15 +143,30 @@ export default function Step8Success({ referenceId, data, onReset }: Step8Props)
 
       {/* Direct Contact Buttons */}
       <div className="flex flex-col sm:flex-row gap-2.5 justify-center mb-4">
-        <a
-          href={whatsappUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
-        >
-          <MessageCircle size={15} />
-          <span>Chat with Strategist on WhatsApp</span>
-        </a>
+        {whatsappUrl ? (
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
+          >
+            <MessageCircle size={15} />
+            <span>Chat with Strategist on WhatsApp</span>
+          </a>
+        ) : (
+          <button
+            type="button"
+            onClick={() =>
+              alert(
+                "Configuration Error: NEXT_PUBLIC_WHATSAPP_NUMBER environment variable is not configured."
+              )
+            }
+            className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
+          >
+            <MessageCircle size={15} />
+            <span>WhatsApp Not Configured (Missing NEXT_PUBLIC_WHATSAPP_NUMBER)</span>
+          </button>
+        )}
 
         <button
           type="button"

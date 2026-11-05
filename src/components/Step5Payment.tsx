@@ -27,11 +27,14 @@ interface Step5Props {
 }
 
 export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
+  const upiVpa = process.env.NEXT_PUBLIC_UPI_VPA;
   const [selectedMethod, setSelectedMethod] = useState<string>(
     data.payment?.method || ""
   );
   const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    !upiVpa ? "Configuration Error: NEXT_PUBLIC_UPI_VPA environment variable is not configured." : null
+  );
   const [paid, setPaid] = useState(data.payment?.status === "PAID");
 
   const basePrice = 999;
@@ -41,10 +44,18 @@ export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
 
   const handleSelectMethod = (m: string) => {
     setSelectedMethod(m);
-    setError(null);
+    if (!upiVpa) {
+      setError("Configuration Error: NEXT_PUBLIC_UPI_VPA environment variable is missing.");
+    } else {
+      setError(null);
+    }
   };
 
   const handleSimulatePayment = () => {
+    if (!upiVpa) {
+      setError("Configuration Error: NEXT_PUBLIC_UPI_VPA is not configured. Payment gateway cannot initialize.");
+      return;
+    }
     if (!selectedMethod) {
       setError("Please select a payment mode (UPI, Card, or NetBanking) first.");
       return;
@@ -68,6 +79,10 @@ export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
   };
 
   const handleContinue = () => {
+    if (!upiVpa) {
+      setError("Configuration Error: NEXT_PUBLIC_UPI_VPA is not configured. Please add it to your environment variables.");
+      return;
+    }
     if (!paid) {
       if (!selectedMethod) {
         setError("Please select a payment mode to proceed.");
@@ -223,7 +238,12 @@ export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
             ) : (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <span className="text-xs text-slate-600 dark:text-slate-400">
-                  Official UPI VPA: <strong className="text-slate-900 dark:text-white">${process.env.NEXT_PUBLIC_UPI_VPA || "evoclabs@icici"}</strong>
+                  Official UPI VPA:{" "}
+                  {upiVpa ? (
+                    <strong className="text-slate-900 dark:text-white font-mono">{upiVpa}</strong>
+                  ) : (
+                    <span className="text-red-500 font-semibold">Error: NEXT_PUBLIC_UPI_VPA not configured</span>
+                  )}
                 </span>
                 <button
                   type="button"

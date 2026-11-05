@@ -168,12 +168,20 @@ export async function POST(req: Request) {
 
     const combinedText = `${finalTitle} ${finalDesc} ${headings.join(" ")}`.toLowerCase();
 
-    // Check if Gemini API Key is available
-    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "";
+    // Strictly enforce GEMINI_API_KEY from environment variables
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (!geminiKey) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Configuration Error: GEMINI_API_KEY environment variable is not configured.",
+        },
+        { status: 500 }
+      );
+    }
 
-    if (geminiKey) {
-      try {
-        const prompt = `You are an elite Meta Ads strategist and e-commerce auditor.
+    try {
+      const prompt = `You are an elite Meta Ads strategist and e-commerce auditor.
 Analyze the following extracted content from the website "${targetUrl}" and generate a structured ad intelligence dossier.
 
 Brand: ${finalBrandName}
@@ -208,137 +216,55 @@ Respond with STRICTLY valid JSON (no markdown formatting, no code fences):
   ]
 }`;
 
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: {
-                responseMimeType: "application/json",
-                temperature: 0.2,
-              },
-            }),
-          }
-        );
-
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          const jsonText =
-            geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-          const parsedGemini = JSON.parse(jsonText);
-
-          return NextResponse.json({
-            success: true,
-            analysis: {
-              ...parsedGemini,
-              domain,
-              aiProvider: "Google Gemini 1.5 Flash (Live Generative Model)",
+      const geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              responseMimeType: "application/json",
+              temperature: 0.2,
             },
-          });
+          }),
         }
-      } catch (geminiErr) {
-        console.warn("[analyze-website] Gemini API fallback to internal semantic engine:", geminiErr);
+      );
+
+      if (!geminiRes.ok) {
+        const errText = await geminiRes.text().catch(() => "");
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Gemini API Error (${geminiRes.status}): ${errText}`,
+          },
+          { status: 502 }
+        );
       }
+
+      const geminiData = await geminiRes.json();
+      const jsonText =
+        geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      const parsedGemini = JSON.parse(jsonText);
+
+      return NextResponse.json({
+        success: true,
+        analysis: {
+          ...parsedGemini,
+          domain,
+          aiProvider: "Google Gemini 1.5 Flash (Live Generative Model)",
+        },
+      });
+    } catch (geminiErr: any) {
+      console.error("[analyze-website] Gemini processing error:", geminiErr);
+      return NextResponse.json(
+        {
+          success: false,
+          message: `AI Analysis Error: ${geminiErr?.message || "Failed to process website with Gemini"}`,
+        },
+        { status: 500 }
+      );
     }
-
-    // High-Precision Semantic Synthesis Engine (Runs when Gemini API key is not configured or as instant fallback)
-    let brandVibe = "Modern Direct-To-Consumer (D2C)";
-    let businessModel = "D2C E-Commerce & Retail";
-    let targetAudience = "Men & Women aged 22-45 seeking quality and convenience online";
-
-    if (/jewel|gold|diamond|silver|necklace|ring/i.test(combinedText)) {
-      brandVibe = "Luxury & Premium Handcrafted Elegance";
-      businessModel = "D2C Fine Jewelry & Luxury Accessories";
-      targetAudience = "Women & Gifting Buyers aged 24-50 seeking bridal, festive, and daily fine jewelry";
-      if (detectedProducts.length === 0) detectedProducts.push("Signature Necklaces", "Handcrafted Rings", "Bridal Earrings");
-    } else if (/fashion|saree|kurta|dress|cloth|apparel|wear/i.test(combinedText)) {
-      brandVibe = "Trend-Forward & Premium Ethnic Lifestyle";
-      businessModel = "D2C Fashion & Designer Apparel";
-      targetAudience = "Fashion-conscious shoppers aged 18-40 looking for chic festive and everyday collections";
-      if (detectedProducts.length === 0) detectedProducts.push("Seasonal Collections", "Designer Sarees", "Festive Ensembles");
-    } else if (/skin|cosmetic|beauty|glow|ayur|derma|hair/i.test(combinedText)) {
-      brandVibe = "Clean, Clinical & Holistic Self-Care";
-      businessModel = "D2C Clean Beauty & Wellness";
-      targetAudience = "Individuals aged 20-45 invested in skincare efficacy, glow, and natural ingredients";
-      if (detectedProducts.length === 0) detectedProducts.push("Hydrating Serums", "Daily Face Cleansers", "Nourishing Creams");
-    } else if (/real estate|apartment|villa|property|residence/i.test(combinedText)) {
-      brandVibe = "High-Trust Architectural Luxury";
-      businessModel = "High-Ticket Real Estate & Development";
-      targetAudience = "High-net-worth investors and families aged 30-55 seeking premium residential properties";
-      if (detectedProducts.length === 0) detectedProducts.push("Luxury Apartments", "Gated Communities", "Prime Commercial Spaces");
-    } else if (/course|edtech|coaching|learn|exam|tuition/i.test(combinedText)) {
-      brandVibe = "Empowering Career & Academic Growth";
-      businessModel = "EdTech & Professional Coaching";
-      targetAudience = "Students, aspirants, and working professionals aiming for top exam ranks and career upgrades";
-      if (detectedProducts.length === 0) detectedProducts.push("Foundation Courses", "Live Mentorship Modules", "Mock Test Series");
-    } else if (/software|saas|crm|platform|tech|agency|cloud/i.test(combinedText)) {
-      brandVibe = "Enterprise & High-Efficiency Tech";
-      businessModel = "B2B SaaS & Tech Infrastructure";
-      targetAudience = "Founders, marketing heads, and business leaders seeking operational scale and higher ROAS";
-      if (detectedProducts.length === 0) detectedProducts.push("Performance Dashboard", "Conversion API Integrations", "Automation Tools");
-    }
-
-    if (detectedProducts.length === 0) {
-      if (headings.length > 0) {
-        detectedProducts = headings.slice(0, 3);
-      } else {
-        detectedProducts = ["Flagship Offerings", "Seasonal Bestsellers", "Curated Essentials"];
-      }
-    }
-
-    if (detectedUsps.length === 0) {
-      detectedUsps = ["Pan-India Fast Dispatch", "Authentic Quality Assured", "Dedicated Customer Support"];
-    }
-
-    const keywords: string[] = [];
-    const words = combinedText.match(/\b[a-z]{4,}\b/g) || [];
-    const stopWords = new Set(["with", "from", "your", "this", "that", "have", "more", "online", "shop", "about", "contact"]);
-    for (const w of words) {
-      if (!stopWords.has(w) && !keywords.includes(w) && keywords.length < 6) {
-        keywords.push(w.charAt(0).toUpperCase() + w.slice(1));
-      }
-    }
-
-    const tagline = headings[0] || `${finalBrandName} — Premium Quality Delivered Directly to You`;
-
-    const detailedSummary = `${finalBrandName} operates as a ${businessModel} brand specializing in ${detectedProducts.slice(0, 2).join(" and ")}. Their brand ethos radiates ${brandVibe.toLowerCase()}, catering to ${targetAudience.toLowerCase()}.`;
-
-    const adHooks = {
-      problemSolution: `Frustrated with low-quality alternatives? Experience the difference with ${finalBrandName}'s ${detectedProducts[0] || "verified catalog"}.`,
-      socialProof: `Rated 4.9/5 by satisfied customers. Join thousands who trust ${finalBrandName} for authentic quality.`,
-      offerUrgency: `Inaugural online offer: Enjoy special promotional pricing + ${detectedUsps[0] || "Free Express Shipping"} on your order today!`,
-    };
-
-    const adAngles = [
-      `Product Spotlight: Highlight ${detectedProducts[0] || "flagship items"} with high-clarity vertical video reels`,
-      `Trust & Value: Emphasize ${detectedUsps.join(" & ")} in carousel ad cards`,
-      `Offer Incentive: Drive instant clicks with limited-time inaugural promotional voucher`,
-    ];
-
-    const result: ExtractedDetails = {
-      domain,
-      brandName: finalBrandName,
-      tagline,
-      businessModel,
-      brandVibe,
-      description: finalDesc,
-      detailedSummary,
-      heroProducts: detectedProducts.slice(0, 4),
-      uniqueSellingPoints: detectedUsps.slice(0, 4),
-      targetAudience,
-      detectedKeywords: keywords,
-      adHooks,
-      recommendedFormat: "Meta Vertical Video Reel (9:16) + Dynamic Product Catalog Carousel (1:1)",
-      adAngles,
-      aiProvider: geminiKey ? "Google Gemini 1.5 Flash" : "Evoc Deep Semantic Web Engine (AI Scraper + JSON-LD Parser)",
-    };
-
-    return NextResponse.json({
-      success: true,
-      analysis: result,
-    });
   } catch (err: any) {
     console.error("[analyze-website] Error:", err);
     return NextResponse.json(
