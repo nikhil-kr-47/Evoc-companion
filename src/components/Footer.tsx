@@ -13,6 +13,8 @@ import {
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+  const rawPhone = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "919548833953";
+  const whatsappPhone = rawPhone.replace(/\D/g, "");
 
   return (
     <footer className="w-full border-t border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/80 transition-colors mt-auto">
@@ -106,7 +108,7 @@ export default function Footer() {
               <span>contact@evoclabs.com</span>
             </a>
             <a
-              href="https://wa.me/919876543210?text=Hi%20Evoc%20Team,%20I%20have%20a%20question%20about%20Evoc%20Companion."
+              href={`https://wa.me/${whatsappPhone}?text=Hi%20Evoc%20Team,%20I%20have%20a%20question%20about%20Evoc%20Companion.`}
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 hover:text-emerald-600 transition-colors font-medium text-[11px]"

@@ -223,7 +223,7 @@ export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
             ) : (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <span className="text-xs text-slate-600 dark:text-slate-400">
-                  Official UPI VPA: <strong className="text-slate-900 dark:text-white">evoclabs@icici</strong>
+                  Official UPI VPA: <strong className="text-slate-900 dark:text-white">${process.env.NEXT_PUBLIC_UPI_VPA || "evoclabs@icici"}</strong>
                 </span>
                 <button
                   type="button"

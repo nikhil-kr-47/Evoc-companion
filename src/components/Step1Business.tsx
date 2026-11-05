@@ -115,7 +115,7 @@ export default function Step1Business({ data, onUpdate, onNext }: Step1Props) {
               type="tel"
               required
               maxLength={10}
-              placeholder="98765 43210"
+              placeholder="95488 33953"
               value={data.phoneNumber}
               onChange={(e) => {
                 const val = e.target.value.replace(/\D/g, "").slice(0, 10);

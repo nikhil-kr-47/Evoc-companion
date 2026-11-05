@@ -57,8 +57,9 @@ export default function Step8Success({ referenceId, data, onReset }: Step8Props)
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const cleanPhone = (data.phoneNumber || "").replace(/\D/g, "");
-  const whatsappUrl = `https://wa.me/919876543210?text=Hi%20Evoc%20Team,%20I%20just%20submitted%20campaign%20intake%20with%20Ref%20ID:%20${referenceId}.%20Business:%20${encodeURIComponent(
+  const rawPhone = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "919548833953";
+  const whatsappPhone = rawPhone.replace(/\D/g, "");
+  const whatsappUrl = `https://wa.me/${whatsappPhone}?text=Hi%20Evoc%20Team,%20I%20just%20submitted%20campaign%20intake%20with%20Ref%20ID:%20${referenceId}.%20Business:%20${encodeURIComponent(
     data.businessName || "My Business"
   )}`;
 
@@ -91,7 +92,7 @@ export default function Step8Success({ referenceId, data, onReset }: Step8Props)
           <button
             type="button"
             onClick={handleCopyRef}
-            className="flex items-center gap-1 text-xs text-blue-700 hover:text-blue-900 dark:text-blue-300 px-2 py-0.5 rounded bg-white dark:bg-slate-800 border border-blue-200 shadow-xs"
+            className="flex items-center gap-1 text-xs text-blue-700 hover:text-blue-900 dark:text-blue-300 px-2 py-0.5 rounded bg-white dark:bg-slate-800 border border-blue-200 shadow-xs cursor-pointer"
           >
             {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
             <span>{copied ? "Copied" : "Copy"}</span>
