@@ -26,14 +26,36 @@ interface Step5Props {
   onNext: () => void;
 }
 
+const loadRazorpayScript = (): Promise<boolean> => {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(false);
+      return;
+    }
+    if ((window as any).Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
   const upiVpa = process.env.NEXT_PUBLIC_UPI_VPA;
+  const razorpayKeyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+
   const [selectedMethod, setSelectedMethod] = useState<string>(
     data.payment?.method || ""
   );
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(
-    !upiVpa ? "Configuration Error: NEXT_PUBLIC_UPI_VPA environment variable is not configured." : null
+    !razorpayKeyId
+      ? "Configuration Error: NEXT_PUBLIC_RAZORPAY_KEY_ID is not configured in environment variables."
+      : null
   );
   const [paid, setPaid] = useState(data.payment?.status === "PAID");
 
@@ -44,16 +66,16 @@ export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
 
   const handleSelectMethod = (m: string) => {
     setSelectedMethod(m);
-    if (!upiVpa) {
-      setError("Configuration Error: NEXT_PUBLIC_UPI_VPA environment variable is missing.");
+    if (!razorpayKeyId) {
+      setError("Configuration Error: NEXT_PUBLIC_RAZORPAY_KEY_ID is missing.");
     } else {
       setError(null);
     }
   };
 
-  const handleSimulatePayment = () => {
-    if (!upiVpa) {
-      setError("Configuration Error: NEXT_PUBLIC_UPI_VPA is not configured. Payment gateway cannot initialize.");
+  const handleProcessPayment = async () => {
+    if (!razorpayKeyId) {
+      setError("Configuration Error: NEXT_PUBLIC_RAZORPAY_KEY_ID is not configured. Payment gateway cannot initialize.");
       return;
     }
     if (!selectedMethod) {
@@ -63,24 +85,103 @@ export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
 
     setIsProcessing(true);
     setError(null);
-    setTimeout(() => {
-      const mockTxnId = "TXN_EVOC_" + Math.random().toString(36).substring(2, 9).toUpperCase();
-      onUpdate({
-        payment: {
-          status: "PAID",
-          method: selectedMethod,
-          transactionId: mockTxnId,
+
+    try {
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        throw new Error("Unable to load Razorpay payment SDK. Please check your network connection.");
+      }
+
+      // 1. Create order on server
+      const orderRes = await fetch("/api/payment/razorpay/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           amount: totalAmount,
-        },
+          receipt: `ord_${Date.now()}`.slice(0, 40),
+          notes: {
+            method: selectedMethod,
+          },
+        }),
       });
-      setPaid(true);
+
+      const orderData = await orderRes.json();
+      if (!orderRes.ok || !orderData.success) {
+        throw new Error(orderData.message || "Failed to initialize payment order.");
+      }
+
+      // 2. Open Razorpay modal
+      const options = {
+        key: razorpayKeyId,
+        amount: orderData.amount,
+        currency: orderData.currency || "INR",
+        name: "Evoc Companion",
+        description: "Meta Ads Launchpad Campaign Setup Fee",
+        order_id: orderData.orderId,
+        prefill: {
+          name: "Evoc Merchant",
+          email: "",
+          contact: "",
+        },
+        theme: {
+          color: "#2563eb",
+        },
+        handler: async function (response: any) {
+          try {
+            // 3. Verify signature on server
+            const verifyRes = await fetch("/api/payment/razorpay/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              }),
+            });
+
+            const verifyData = await verifyRes.json();
+            if (verifyRes.ok && verifyData.success) {
+              onUpdate({
+                payment: {
+                  status: "PAID",
+                  method: selectedMethod,
+                  transactionId: response.razorpay_payment_id,
+                  amount: totalAmount,
+                },
+              });
+              setPaid(true);
+              setIsProcessing(false);
+            } else {
+              throw new Error(verifyData.message || "Payment verification failed.");
+            }
+          } catch (vErr: any) {
+            setError(vErr.message || "Payment verification failed.");
+            setIsProcessing(false);
+          }
+        },
+        modal: {
+          ondismiss: function () {
+            setIsProcessing(false);
+          },
+        },
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on("payment.failed", function (response: any) {
+        setError(response.error?.description || "Payment failed at gateway.");
+        setIsProcessing(false);
+      });
+      rzp.open();
+    } catch (payErr: any) {
+      console.error("[Razorpay checkout error]", payErr);
+      setError(payErr.message || "Failed to initialize checkout.");
       setIsProcessing(false);
-    }, 1000);
+    }
   };
 
   const handleContinue = () => {
-    if (!upiVpa) {
-      setError("Configuration Error: NEXT_PUBLIC_UPI_VPA is not configured. Please add it to your environment variables.");
+    if (!razorpayKeyId) {
+      setError("Configuration Error: NEXT_PUBLIC_RAZORPAY_KEY_ID is not configured. Please add it to your environment variables.");
       return;
     }
     if (!paid) {
@@ -88,7 +189,7 @@ export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
         setError("Please select a payment mode to proceed.");
         return;
       }
-      handleSimulatePayment();
+      handleProcessPayment();
       return;
     }
     onNext();
@@ -238,20 +339,20 @@ export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
             ) : (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <span className="text-xs text-slate-600 dark:text-slate-400">
-                  Official UPI VPA:{" "}
-                  {upiVpa ? (
-                    <strong className="text-slate-900 dark:text-white font-mono">{upiVpa}</strong>
+                  Secured Checkout:{" "}
+                  {razorpayKeyId ? (
+                    <strong className="text-slate-900 dark:text-white font-mono">Razorpay Gateway (Active)</strong>
                   ) : (
-                    <span className="text-red-500 font-semibold">Error: NEXT_PUBLIC_UPI_VPA not configured</span>
+                    <span className="text-red-500 font-semibold">Error: NEXT_PUBLIC_RAZORPAY_KEY_ID not configured</span>
                   )}
                 </span>
                 <button
                   type="button"
-                  onClick={handleSimulatePayment}
+                  onClick={handleProcessPayment}
                   disabled={isProcessing}
                   className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer"
                 >
-                  {isProcessing ? "Verifying..." : `Pay ₹${totalAmount.toFixed(2)} via ${selectedMethod}`}
+                  {isProcessing ? "Opening Gateway..." : `Pay ₹${totalAmount.toFixed(2)} via ${selectedMethod}`}
                 </button>
               </div>
             )}
