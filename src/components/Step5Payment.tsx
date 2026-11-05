@@ -26,6 +26,24 @@ interface Step5Props {
   onNext: () => void;
 }
 
+const loadCashfreeScript = (): Promise<boolean> => {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(false);
+      return;
+    }
+    if ((window as any).Cashfree) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 const loadRazorpayScript = (): Promise<boolean> => {
   return new Promise((resolve) => {
     if (typeof window === "undefined") {
@@ -47,16 +65,13 @@ const loadRazorpayScript = (): Promise<boolean> => {
 export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
   const upiVpa = process.env.NEXT_PUBLIC_UPI_VPA;
   const razorpayKeyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+  const preferredGateway = (process.env.NEXT_PUBLIC_PAYMENT_PROVIDER || "cashfree").toLowerCase();
 
   const [selectedMethod, setSelectedMethod] = useState<string>(
-    data.payment?.method || ""
+    data.payment?.method || "UPI"
   );
   const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(
-    !razorpayKeyId
-      ? "Configuration Error: NEXT_PUBLIC_RAZORPAY_KEY_ID is not configured in environment variables."
-      : null
-  );
+  const [error, setError] = useState<string | null>(null);
   const [paid, setPaid] = useState(data.payment?.status === "PAID");
 
   const basePrice = 999;
@@ -66,129 +81,178 @@ export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
 
   const handleSelectMethod = (m: string) => {
     setSelectedMethod(m);
-    if (!razorpayKeyId) {
-      setError("Configuration Error: NEXT_PUBLIC_RAZORPAY_KEY_ID is missing.");
-    } else {
-      setError(null);
-    }
+    setError(null);
   };
 
   const handleProcessPayment = async () => {
-    if (!razorpayKeyId) {
-      setError("Configuration Error: NEXT_PUBLIC_RAZORPAY_KEY_ID is not configured. Payment gateway cannot initialize.");
-      return;
-    }
-    if (!selectedMethod) {
-      setError("Please select a payment mode (UPI, Card, or NetBanking) first.");
-      return;
-    }
-
     setIsProcessing(true);
     setError(null);
 
-    try {
-      const scriptLoaded = await loadRazorpayScript();
-      if (!scriptLoaded) {
-        throw new Error("Unable to load Razorpay payment SDK. Please check your network connection.");
-      }
+    // Try Cashfree first (as requested)
+    if (preferredGateway === "cashfree" || !razorpayKeyId) {
+      try {
+        const cashfreeLoaded = await loadCashfreeScript();
+        if (!cashfreeLoaded || !(window as any).Cashfree) {
+          throw new Error("Unable to load Cashfree checkout SDK. Please verify your connection.");
+        }
 
-      // 1. Create order on server
-      const orderRes = await fetch("/api/payment/razorpay/create-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: totalAmount,
-          receipt: `ord_${Date.now()}`.slice(0, 40),
-          notes: {
-            method: selectedMethod,
+        // 1. Create order on server via Cashfree
+        const orderRes = await fetch("/api/payment/cashfree/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: totalAmount,
+            customerName: "Evoc Merchant",
+            customerEmail: "merchant@evoclabs.com",
+            customerPhone: "9876543210",
+          }),
+        });
+
+        const orderData = await orderRes.json();
+        if (!orderRes.ok || !orderData.success) {
+          throw new Error(orderData.message || "Failed to initialize Cashfree payment order.");
+        }
+
+        const cashfree = (window as any).Cashfree({
+          mode: orderData.environment === "production" ? "production" : "sandbox",
+        });
+
+        const checkoutResult = await cashfree.checkout({
+          paymentSessionId: orderData.paymentSessionId,
+          redirectTarget: "_modal",
+        });
+
+        if (checkoutResult?.error) {
+          setError(checkoutResult.error.message || "Payment cancelled or dismissed.");
+          setIsProcessing(false);
+          return;
+        }
+
+        // 2. Verify with server
+        const verifyRes = await fetch("/api/payment/cashfree/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId: orderData.orderId }),
+        });
+
+        const verifyData = await verifyRes.json();
+        if (verifyRes.ok && verifyData.success && verifyData.verified) {
+          onUpdate({
+            payment: {
+              status: "PAID",
+              method: "CASHFREE",
+              transactionId: verifyData.transactionId || orderData.orderId,
+              amount: totalAmount,
+            },
+          });
+          setPaid(true);
+          setIsProcessing(false);
+          return;
+        } else {
+          throw new Error(verifyData.message || "Payment was not verified by gateway.");
+        }
+      } catch (cfErr: any) {
+        console.warn("[Cashfree attempt failed, checking Razorpay fallback]:", cfErr.message);
+        // If razorpay is not configured, show Cashfree error
+        if (!razorpayKeyId) {
+          setError(cfErr.message || "Payment gateway error.");
+          setIsProcessing(false);
+          return;
+        }
+      }
+    }
+
+    // Razorpay fallback / alternate
+    if (razorpayKeyId) {
+      try {
+        const scriptLoaded = await loadRazorpayScript();
+        if (!scriptLoaded) {
+          throw new Error("Unable to load Razorpay payment SDK.");
+        }
+
+        const orderRes = await fetch("/api/payment/razorpay/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: totalAmount,
+            receipt: `ord_${Date.now()}`.slice(0, 40),
+            notes: { method: selectedMethod },
+          }),
+        });
+
+        const orderData = await orderRes.json();
+        if (!orderRes.ok || !orderData.success) {
+          throw new Error(orderData.message || "Failed to initialize payment order.");
+        }
+
+        const options = {
+          key: razorpayKeyId,
+          amount: orderData.amount,
+          currency: orderData.currency || "INR",
+          name: "Evoc Companion",
+          description: "Meta Ads Launchpad Campaign Setup Fee",
+          order_id: orderData.orderId,
+          prefill: {
+            name: "Evoc Merchant",
+            email: "merchant@evoclabs.com",
+            contact: "9876543210",
           },
-        }),
-      });
-
-      const orderData = await orderRes.json();
-      if (!orderRes.ok || !orderData.success) {
-        throw new Error(orderData.message || "Failed to initialize payment order.");
-      }
-
-      // 2. Open Razorpay modal
-      const options = {
-        key: razorpayKeyId,
-        amount: orderData.amount,
-        currency: orderData.currency || "INR",
-        name: "Evoc Companion",
-        description: "Meta Ads Launchpad Campaign Setup Fee",
-        order_id: orderData.orderId,
-        prefill: {
-          name: "Evoc Merchant",
-          email: "",
-          contact: "",
-        },
-        theme: {
-          color: "#2563eb",
-        },
-        handler: async function (response: any) {
-          try {
-            // 3. Verify signature on server
-            const verifyRes = await fetch("/api/payment/razorpay/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-              }),
-            });
-
-            const verifyData = await verifyRes.json();
-            if (verifyRes.ok && verifyData.success) {
-              onUpdate({
-                payment: {
-                  status: "PAID",
-                  method: selectedMethod,
-                  transactionId: response.razorpay_payment_id,
-                  amount: totalAmount,
-                },
+          theme: { color: "#09090b" },
+          handler: async function (response: any) {
+            try {
+              const verifyRes = await fetch("/api/payment/razorpay/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                }),
               });
-              setPaid(true);
-              setIsProcessing(false);
-            } else {
-              throw new Error(verifyData.message || "Payment verification failed.");
-            }
-          } catch (vErr: any) {
-            setError(vErr.message || "Payment verification failed.");
-            setIsProcessing(false);
-          }
-        },
-        modal: {
-          ondismiss: function () {
-            setIsProcessing(false);
-          },
-        },
-      };
 
-      const rzp = new (window as any).Razorpay(options);
-      rzp.on("payment.failed", function (response: any) {
-        setError(response.error?.description || "Payment failed at gateway.");
+              const verifyData = await verifyRes.json();
+              if (verifyRes.ok && verifyData.success) {
+                onUpdate({
+                  payment: {
+                    status: "PAID",
+                    method: selectedMethod,
+                    transactionId: response.razorpay_payment_id,
+                    amount: totalAmount,
+                  },
+                });
+                setPaid(true);
+                setIsProcessing(false);
+              } else {
+                throw new Error(verifyData.message || "Payment verification failed.");
+              }
+            } catch (vErr: any) {
+              setError(vErr.message || "Payment verification failed.");
+              setIsProcessing(false);
+            }
+          },
+          modal: {
+            ondismiss: function () {
+              setIsProcessing(false);
+            },
+          },
+        };
+
+        const rzp = new (window as any).Razorpay(options);
+        rzp.on("payment.failed", function (response: any) {
+          setError(response.error?.description || "Payment failed at gateway.");
+          setIsProcessing(false);
+        });
+        rzp.open();
+      } catch (payErr: any) {
+        console.error("[Payment checkout error]", payErr);
+        setError(payErr.message || "Failed to initialize checkout.");
         setIsProcessing(false);
-      });
-      rzp.open();
-    } catch (payErr: any) {
-      console.error("[Razorpay checkout error]", payErr);
-      setError(payErr.message || "Failed to initialize checkout.");
-      setIsProcessing(false);
+      }
     }
   };
 
   const handleContinue = () => {
-    if (!razorpayKeyId) {
-      setError("Configuration Error: NEXT_PUBLIC_RAZORPAY_KEY_ID is not configured. Please add it to your environment variables.");
-      return;
-    }
     if (!paid) {
-      if (!selectedMethod) {
-        setError("Please select a payment mode to proceed.");
-        return;
-      }
       handleProcessPayment();
       return;
     }
@@ -340,19 +404,17 @@ export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <span className="text-xs text-slate-600 dark:text-slate-400">
                   Secured Checkout:{" "}
-                  {razorpayKeyId ? (
-                    <strong className="text-slate-900 dark:text-white font-mono">Razorpay Gateway (Active)</strong>
-                  ) : (
-                    <span className="text-red-500 font-semibold">Error: NEXT_PUBLIC_RAZORPAY_KEY_ID not configured</span>
-                  )}
+                  <strong className="text-slate-900 dark:text-white font-medium">
+                    {preferredGateway === "cashfree" ? "Cashfree PG Verified" : "Razorpay Verified"}
+                  </strong>
                 </span>
                 <button
                   type="button"
                   onClick={handleProcessPayment}
                   disabled={isProcessing}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 font-semibold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
                 >
-                  {isProcessing ? "Opening Gateway..." : `Pay ₹${totalAmount.toFixed(2)} via ${selectedMethod}`}
+                  {isProcessing ? "Opening Checkout..." : `Pay ₹${totalAmount.toFixed(2)}`}
                 </button>
               </div>
             )}

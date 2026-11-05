@@ -137,52 +137,62 @@ export default function Step3Website({ data, onUpdate, onNext }: Step3Props) {
     <div className="w-full max-w-3xl mx-auto animate-slide-up">
       {/* Header */}
       <div className="text-center mb-6 sm:mb-8">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300 text-xs font-semibold mb-2 sm:mb-3">
-          <Sparkles size={13} />
-          <span>Step 4 • Website &amp; AI Intelligence</span>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-slate-300 text-xs font-medium mb-3">
+          <Sparkles size={12} className="text-blue-500" />
+          <span>Step 4 • Website &amp; Catalog Intelligence</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">
           Do you have a website?
         </h1>
-        <p className="text-slate-600 dark:text-slate-400 text-sm max-w-md mx-auto">
-          Our AI engine automatically scans your live domain, catalog structure, and trust signals to architect high-converting ad angles.
+        <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm max-w-md mx-auto leading-relaxed">
+          Our AI scans your live store, catalog, and positioning to automatically construct high-converting ad hooks.
         </p>
       </div>
 
       {error && (
-        <div className="mb-5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-300 text-xs flex items-center justify-center gap-2 font-medium">
-          <span>⚠️ {error}</span>
+        <div className="mb-5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-200 text-xs flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">Notice:</span>
+            <span>{error}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            className="text-xs font-semibold opacity-70 hover:opacity-100 cursor-pointer shrink-0"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
       {/* Choice Buttons: 1 col on mobile, 2 col on tablet/desktop */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
         <button
           type="button"
           onClick={() => handleSelectHasWebsite(true)}
-          className={`p-4 sm:p-5 rounded-2xl border text-left transition-all cursor-pointer ${
+          className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
             data.hasWebsite === true
-              ? "bg-blue-50/90 dark:bg-blue-950/40 border-blue-600 ring-2 ring-blue-500/20 text-slate-900 dark:text-white shadow-sm"
-              : "bg-white dark:bg-slate-900/60 hover:bg-slate-50 dark:hover:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 shadow-xs"
+              ? "bg-slate-50 dark:bg-white/5 border-slate-900 dark:border-white ring-1 ring-slate-900 dark:ring-white text-slate-900 dark:text-white"
+              : "bg-white dark:bg-slate-900/40 hover:bg-slate-50 dark:hover:bg-slate-900 border-slate-200/80 dark:border-white/10 text-slate-600 dark:text-slate-400"
           }`}
         >
-          <div className="flex items-center justify-between mb-2.5">
+          <div className="flex items-center justify-between mb-2">
             <span
-              className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs ${
+              className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${
                 data.hasWebsite === true
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                  ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900"
+                  : "bg-slate-100 dark:bg-white/5 text-slate-500"
               }`}
             >
-              <Globe size={18} />
+              <Globe size={16} />
             </span>
             {data.hasWebsite === true && (
-              <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+              <span className="text-[10px] font-semibold text-slate-900 dark:text-white uppercase tracking-wider">
                 Selected
               </span>
             )}
           </div>
-          <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">Yes, I have a website</h3>
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Yes, I have a website</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
             Enter URL for automated deep AI brand, catalog &amp; angle analysis.
           </p>
@@ -191,29 +201,29 @@ export default function Step3Website({ data, onUpdate, onNext }: Step3Props) {
         <button
           type="button"
           onClick={() => handleSelectHasWebsite(false)}
-          className={`p-4 sm:p-5 rounded-2xl border text-left transition-all cursor-pointer ${
+          className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
             data.hasWebsite === false
-              ? "bg-blue-50/90 dark:bg-blue-950/40 border-blue-600 ring-2 ring-blue-500/20 text-slate-900 dark:text-white shadow-sm"
-              : "bg-white dark:bg-slate-900/60 hover:bg-slate-50 dark:hover:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 shadow-xs"
+              ? "bg-slate-50 dark:bg-white/5 border-slate-900 dark:border-white ring-1 ring-slate-900 dark:ring-white text-slate-900 dark:text-white"
+              : "bg-white dark:bg-slate-900/40 hover:bg-slate-50 dark:hover:bg-slate-900 border-slate-200/80 dark:border-white/10 text-slate-600 dark:text-slate-400"
           }`}
         >
-          <div className="flex items-center justify-between mb-2.5">
+          <div className="flex items-center justify-between mb-2">
             <span
-              className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs ${
+              className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${
                 data.hasWebsite === false
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                  ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900"
+                  : "bg-slate-100 dark:bg-white/5 text-slate-500"
               }`}
             >
-              <FileText size={18} />
+              <FileText size={16} />
             </span>
             {data.hasWebsite === false && (
-              <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+              <span className="text-[10px] font-semibold text-slate-900 dark:text-white uppercase tracking-wider">
                 Selected
               </span>
             )}
           </div>
-          <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">No, elaborate manually</h3>
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-white">No, elaborate manually</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
             Describe your offering and products in a few sentences.
           </p>
@@ -394,20 +404,20 @@ export default function Step3Website({ data, onUpdate, onNext }: Step3Props) {
 
       {/* Conditional Section B: NO Website */}
       {data.hasWebsite === false && (
-        <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2.5">
-          <label className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 block">
+        <div className="mb-6 p-4 sm:p-5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200/80 dark:border-white/10 space-y-2">
+          <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
             Elaborate on your business <span className="text-rose-500">*</span>
           </label>
           <textarea
             rows={4}
             required
-            placeholder="Describe what you sell, your target customer profile, price range, and why clients buy from you..."
+            placeholder="Describe what products or services you offer, your ideal buyers, and why customers choose your brand..."
             value={data.businessDescription}
             onChange={(e) => {
               onUpdate({ businessDescription: e.target.value });
               if (error) setError(null);
             }}
-            className="w-full p-3.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 text-xs font-medium outline-none focus:border-blue-600 shadow-xs leading-relaxed"
+            className="w-full p-3.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 text-xs font-normal outline-none focus:border-slate-900 dark:focus:border-white leading-relaxed transition-colors"
           />
         </div>
       )}
@@ -417,10 +427,10 @@ export default function Step3Website({ data, onUpdate, onNext }: Step3Props) {
         <button
           type="button"
           onClick={handleContinue}
-          className="w-full sm:w-auto px-7 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all transform active:scale-[0.99] cursor-pointer"
+          className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 font-semibold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
         >
           <span>Continue to Target Audience</span>
-          <ArrowRight size={17} />
+          <ArrowRight size={15} />
         </button>
       </div>
     </div>
