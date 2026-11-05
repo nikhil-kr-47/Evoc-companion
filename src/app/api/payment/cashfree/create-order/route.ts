@@ -31,6 +31,19 @@ export async function POST(req: Request) {
     const cashfreeOrderId = `evoc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`.slice(0, 45);
     const customerId = `cust_${Date.now()}`.slice(0, 45);
 
+    // Sandbox Test Mode bypass using provided test credentials
+    if (appId.startsWith("TEST_EVOC_") || secretKey.startsWith("TEST_EVOC_")) {
+      return NextResponse.json({
+        success: true,
+        orderId: cashfreeOrderId,
+        paymentSessionId: `session_sim_${Date.now()}`,
+        environment: "sandbox",
+        amount: orderAmount,
+        currency: "INR",
+        isSimulated: true,
+      });
+    }
+
     const apiBase =
       cashfreeEnv === "production"
         ? "https://api.cashfree.com/pg"

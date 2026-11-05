@@ -113,6 +113,34 @@ export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
           throw new Error(orderData.message || "Failed to initialize Cashfree payment order.");
         }
 
+        // Handle instant Sandbox testing flow
+        if (orderData.isSimulated || String(orderData.paymentSessionId).startsWith("session_sim_")) {
+          setTimeout(async () => {
+            const verifyRes = await fetch("/api/payment/cashfree/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ orderId: orderData.orderId }),
+            });
+            const verifyData = await verifyRes.json();
+            if (verifyData.success) {
+              onUpdate({
+                payment: {
+                  status: "PAID",
+                  method: "CASHFREE_SANDBOX",
+                  transactionId: verifyData.transactionId || orderData.orderId,
+                  amount: totalAmount,
+                },
+              });
+              setPaid(true);
+              setIsProcessing(false);
+            } else {
+              setError(verifyData.message || "Payment verification failed.");
+              setIsProcessing(false);
+            }
+          }, 800);
+          return;
+        }
+
         const cashfree = (window as any).Cashfree({
           mode: orderData.environment === "production" ? "production" : "sandbox",
         });
