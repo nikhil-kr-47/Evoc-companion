@@ -165,8 +165,8 @@ export default function LaunchpadPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#fbfbfd] text-slate-900">
-      {/* Top Navigation */}
+    <div className="min-h-screen flex flex-col bg-[#f8fafc] text-slate-900">
+      {/* Top Navigation with Brand & Creative Progress */}
       <Header
         currentStep={currentStep}
         totalSteps={TOTAL_STEPS}
@@ -174,8 +174,8 @@ export default function LaunchpadPage() {
         onBack={handleBack}
       />
 
-      {/* Main Form Body - Standard Fintech Clean Flow */}
-      <main className="flex-1 w-full max-w-md mx-auto px-4 py-6 sm:py-10 flex flex-col justify-start">
+      {/* Main Responsive Form Canvas - Phone & Laptop Aligned */}
+      <main className="flex-1 w-full max-w-xl mx-auto px-4 sm:px-6 py-6 sm:py-10 flex flex-col justify-start">
         {currentStep === 1 && (
           <Step1Business
             data={formData}

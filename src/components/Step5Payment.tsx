@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Check, ShieldCheck, ArrowRight, Loader2 } from "lucide-react";
+import { Check, ShieldCheck, ArrowRight, Loader2, CreditCard } from "lucide-react";
 
 interface Step5Props {
   data: {
@@ -190,7 +190,7 @@ export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
           name: "Evoc Labs",
           description: "Campaign Setup Fee",
           order_id: rzpOrder.orderId,
-          theme: { color: "#111827" },
+          theme: { color: "#2563eb" },
           handler: async function (response: any) {
             try {
               const verifyRes = await fetch("/api/payment/razorpay/verify-payment", {
@@ -247,86 +247,100 @@ export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto">
-      {/* Title & Description - Left Aligned */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-          Campaign setup fee
-        </h1>
-        <p className="text-slate-500 text-sm mt-1.5 leading-relaxed">
-          One-time launch fee to architect, target, and verify your Meta campaign.
-        </p>
-      </div>
-
-      {error && (
-        <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
-          {error}
-        </div>
-      )}
-
-      {/* Invoice Card */}
-      <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs mb-6 space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div>
-            <span className="text-xs font-semibold text-slate-900 block">Campaign Setup &amp; Architecture</span>
-            <span className="text-[11px] text-slate-400">One-time launch fee</span>
+    <div className="w-full animate-slide-up">
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
+        {/* Header */}
+        <div className="mb-6">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200/60 text-blue-700 text-xs font-semibold mb-3">
+            <CreditCard size={13} className="text-blue-500" />
+            <span>Official Order Summary</span>
           </div>
-          <span className="text-sm font-semibold text-slate-900">₹{basePrice.toFixed(2)}</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            Campaign setup fee
+          </h1>
+          <p className="text-slate-500 text-sm mt-2 leading-relaxed">
+            One-time launch fee for end-to-end campaign architecture, audience targeting, and CAPI verification.
+          </p>
         </div>
 
-        <div className="flex items-center justify-between text-xs text-slate-500">
-          <span>Applicable GST (18%)</span>
-          <span className="font-medium text-slate-700">₹{gstAmount.toFixed(2)}</span>
-        </div>
-
-        <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-          <span className="text-sm font-bold text-slate-900">Total Payable</span>
-          <span className="text-xl font-bold text-slate-900">₹{totalAmount.toFixed(2)}</span>
-        </div>
-      </div>
-
-      {paid && (
-        <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-3">
-          <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
-            <Check size={14} strokeWidth={2.5} />
+        {error && (
+          <div className="mb-5 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
+            {error}
           </div>
-          <div className="text-xs">
-            <span className="font-semibold block">Payment Verified</span>
-            <span className="text-slate-500 font-mono text-[11px]">
-              ID: {data.payment?.transactionId || "CONFIRMED"}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Action Button */}
-      <button
-        type="button"
-        onClick={handleContinue}
-        disabled={isProcessing}
-        className="w-full py-3.5 px-4 rounded-xl bg-[#111827] hover:bg-black disabled:opacity-50 text-white font-medium text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs"
-      >
-        {isProcessing ? (
-          <>
-            <Loader2 size={16} className="animate-spin" />
-            <span>Opening Checkout...</span>
-          </>
-        ) : paid ? (
-          <>
-            <span>Continue</span>
-            <ArrowRight size={16} />
-          </>
-        ) : (
-          <>
-            <span>Pay ₹{totalAmount.toFixed(2)}</span>
-            <ArrowRight size={16} />
-          </>
         )}
-      </button>
 
-      <div className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
-        <ShieldCheck size={13} />
-        <span>Secured via 256-bit SSL encrypted gateway</span>
+        {/* Invoice Card */}
+        <div className="p-5 rounded-2xl border border-slate-200/90 bg-slate-50/60 mb-6 space-y-3.5">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200/80">
+            <div>
+              <span className="text-xs font-bold text-slate-900 block">
+                Professional Campaign Setup &amp; Architecture
+              </span>
+              <span className="text-[11px] text-slate-500">Includes Meta CAPI Strategy &amp; Audience Matrix</span>
+            </div>
+            <span className="text-sm font-bold text-slate-900">₹{basePrice.toFixed(2)}</span>
+          </div>
+
+          <div className="flex items-center justify-between text-xs text-slate-600">
+            <span>Applicable GST (18%)</span>
+            <span className="font-semibold text-slate-800">₹{gstAmount.toFixed(2)}</span>
+          </div>
+
+          <div className="pt-3 border-t border-slate-200/80 flex items-center justify-between">
+            <div>
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block">Total Amount</span>
+              <span className="text-2xl font-black text-blue-600">₹{totalAmount.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+              <ShieldCheck size={14} />
+              <span className="font-semibold">GST Inclusive</span>
+            </div>
+          </div>
+        </div>
+
+        {paid && (
+          <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-3">
+            <div className="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+              <Check size={16} strokeWidth={3} />
+            </div>
+            <div className="text-xs">
+              <span className="font-bold text-sm block text-emerald-900">Payment Confirmed</span>
+              <span className="text-emerald-700 font-mono text-[11px]">
+                Transaction ID: {data.payment?.transactionId || "CONFIRMED"}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Action Button */}
+        <button
+          type="button"
+          onClick={handleContinue}
+          disabled={isProcessing}
+          className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-sm shadow-blue-500/25 active:scale-[0.99] transition-all cursor-pointer"
+        >
+          {isProcessing ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              <span>Opening Checkout...</span>
+            </>
+          ) : paid ? (
+            <>
+              <span>Continue to Ad Account Access</span>
+              <ArrowRight size={16} />
+            </>
+          ) : (
+            <>
+              <span>Proceed to Pay ₹{totalAmount.toFixed(2)}</span>
+              <ArrowRight size={16} />
+            </>
+          )}
+        </button>
+
+        <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-slate-400">
+          <ShieldCheck size={14} className="text-slate-400" />
+          <span>Secured via 256-bit encrypted checkout</span>
+        </div>
       </div>
     </div>
   );
