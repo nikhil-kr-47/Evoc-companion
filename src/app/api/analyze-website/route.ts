@@ -168,20 +168,12 @@ export async function POST(req: Request) {
 
     const combinedText = `${finalTitle} ${finalDesc} ${headings.join(" ")}`.toLowerCase();
 
-    // Strictly enforce GEMINI_API_KEY from environment variables
+    // If GEMINI_API_KEY is configured, attempt AI analysis
     const geminiKey = process.env.GEMINI_API_KEY;
-    if (!geminiKey) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Configuration Error: GEMINI_API_KEY environment variable is not configured.",
-        },
-        { status: 500 }
-      );
-    }
 
-    try {
-      const prompt = `You are an elite Meta Ads strategist and e-commerce auditor.
+    if (geminiKey) {
+      try {
+        const prompt = `You are an elite Meta Ads strategist and e-commerce auditor.
 Analyze the following extracted content from the website "${targetUrl}" and generate a structured ad intelligence dossier.
 
 Brand: ${finalBrandName}
@@ -216,59 +208,63 @@ Respond with STRICTLY valid JSON (no markdown formatting, no code fences):
   ]
 }`;
 
-    const candidateModels = [
-      "gemini-2.0-flash",
-      "gemini-1.5-flash-latest",
-      "gemini-1.5-flash",
-      "gemini-2.5-flash",
-      "gemini-1.5-pro",
-    ];
+        const candidateModels = [
+          "gemini-2.0-flash",
+          "gemini-1.5-flash-latest",
+          "gemini-1.5-flash",
+          "gemini-2.5-flash",
+          "gemini-1.5-pro",
+        ];
 
-    let geminiSuccess = false;
-    let geminiResult: any = null;
-    let usedModel = "";
+        let geminiSuccess = false;
+        let geminiResult: any = null;
+        let usedModel = "";
 
-    for (const model of candidateModels) {
-      try {
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: {
-                responseMimeType: "application/json",
-                temperature: 0.2,
-              },
-            }),
-            signal: AbortSignal.timeout(7000),
+        for (const model of candidateModels) {
+          try {
+            const geminiRes = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: prompt }] }],
+                  generationConfig: {
+                    responseMimeType: "application/json",
+                    temperature: 0.2,
+                  },
+                }),
+                signal: AbortSignal.timeout(7000),
+              }
+            );
+
+            if (geminiRes.ok) {
+              const geminiData = await geminiRes.json();
+              const jsonText =
+                geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+              geminiResult = JSON.parse(jsonText);
+              geminiSuccess = true;
+              usedModel = model;
+              break;
+            }
+          } catch {
+            // try next candidate model
           }
-        );
-
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          const jsonText =
-            geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-          geminiResult = JSON.parse(jsonText);
-          geminiSuccess = true;
-          usedModel = model;
-          break;
         }
-      } catch (mErr) {
-        // try next candidate model
-      }
-    }
 
-    if (geminiSuccess && geminiResult) {
-      return NextResponse.json({
-        success: true,
-        analysis: {
-          ...geminiResult,
-          domain,
-          aiProvider: `Google Gemini (${usedModel})`,
-        },
-      });
+        if (geminiSuccess && geminiResult) {
+          return NextResponse.json({
+            success: true,
+            analysis: {
+              ...geminiResult,
+              domain,
+              aiProvider: `Google Gemini (${usedModel})`,
+            },
+          });
+        }
+      } catch (geminiErr: any) {
+        console.warn("[analyze-website] Gemini processing note:", geminiErr?.message);
+      }
     }
 
     // High-Precision Semantic Fallback directly from live scraped page content
@@ -312,16 +308,6 @@ Respond with STRICTLY valid JSON (no markdown formatting, no code fences):
         aiProvider: "Evoc Deep Semantic Engine (Scraped Live Catalog)",
       },
     });
-    } catch (geminiErr: any) {
-      console.error("[analyze-website] Gemini processing error:", geminiErr);
-      return NextResponse.json(
-        {
-          success: false,
-          message: `AI Analysis Error: ${geminiErr?.message || "Failed to process website with Gemini"}`,
-        },
-        { status: 500 }
-      );
-    }
   } catch (err: any) {
     console.error("[analyze-website] Error:", err);
     return NextResponse.json(

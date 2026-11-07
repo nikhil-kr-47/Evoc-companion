@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import Step1Business from "@/components/Step1Business";
 import Step2Objective from "@/components/Step2Objective";
 import Step3Industry from "@/components/Step3Industry";
@@ -13,9 +12,8 @@ import Step6AdAccount from "@/components/Step6AdAccount";
 import Step7Creatives from "@/components/Step7Creatives";
 import Step8Success from "@/components/Step8Success";
 
-const TOTAL_STEPS = 8;
-const STORAGE_KEY = "evoc_companion_draft_v2";
-const THEME_STORAGE_KEY = "evoc_companion_theme_mode";
+const TOTAL_STEPS = 9;
+const STORAGE_KEY = "evoc_companion_form_draft_v2";
 
 // Pure clean initial state with ZERO dummy or default pre-filled values
 const INITIAL_FORM_DATA = {
@@ -63,26 +61,11 @@ export default function LaunchpadPage() {
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
   const [referenceId, setReferenceId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [theme, setTheme] = useState<"dark" | "light">("light");
   const [isMounted, setIsMounted] = useState(false);
 
-  // Initialize theme & load draft on client mount
+  // Load draft on client mount
   useEffect(() => {
     setIsMounted(true);
-
-    try {
-      const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) as "dark" | "light" | null;
-      const initialTheme = savedTheme || "light";
-      setTheme(initialTheme);
-      if (initialTheme === "dark") {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-    } catch (e) {
-      document.documentElement.classList.remove("dark");
-    }
-
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
@@ -96,21 +79,6 @@ export default function LaunchpadPage() {
       console.warn("Failed to read draft from storage:", e);
     }
   }, []);
-
-  const toggleTheme = () => {
-    const nextTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-    try {
-      localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
-    } catch (e) {
-      console.warn(e);
-    }
-    if (nextTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  };
 
   useEffect(() => {
     if (!isMounted || currentStep === 9) return;
@@ -185,31 +153,29 @@ export default function LaunchpadPage() {
   };
 
   const stepTitles: Record<number, string> = {
-    1: "Business Details",
-    2: "Campaign Objective",
-    3: "Industry & Subcategories",
-    4: "Website & Overview",
-    5: "Target Audience",
-    6: "Payment Setup Fee",
-    7: "Ad Account Access",
-    8: "Creative Assets",
+    1: "Mobile",
+    2: "Goal",
+    3: "Industry",
+    4: "Website",
+    5: "Audience",
+    6: "Payment",
+    7: "Ad Account",
+    8: "Creatives",
     9: "Confirmation",
   };
 
   return (
-    <div className="min-h-screen flex flex-col transition-colors selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen flex flex-col bg-[#fbfbfd] text-slate-900">
       {/* Top Navigation */}
       <Header
         currentStep={currentStep}
         totalSteps={TOTAL_STEPS}
         stepTitle={stepTitles[currentStep] || ""}
-        theme={theme}
-        onToggleTheme={toggleTheme}
         onBack={handleBack}
       />
 
-      {/* Main Form Body - Balanced & Spacious */}
-      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-8 py-8 sm:py-12 flex flex-col justify-center">
+      {/* Main Form Body - Standard Fintech Clean Flow */}
+      <main className="flex-1 w-full max-w-md mx-auto px-4 py-6 sm:py-10 flex flex-col justify-start">
         {currentStep === 1 && (
           <Step1Business
             data={formData}
@@ -283,9 +249,6 @@ export default function LaunchpadPage() {
           />
         )}
       </main>
-
-      {/* Footer */}
-      <Footer />
     </div>
   );
 }
