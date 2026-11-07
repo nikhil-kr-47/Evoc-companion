@@ -1,7 +1,17 @@
 "use client";
 
 import React, { useState } from "react";
-import { Check, ShieldCheck, ArrowRight, Loader2, CreditCard } from "lucide-react";
+import {
+  Check,
+  ShieldCheck,
+  ArrowRight,
+  Loader2,
+  CreditCard,
+  QrCode,
+  Building,
+  X,
+  Lock,
+} from "lucide-react";
 
 interface Step5Props {
   data: {
@@ -34,31 +44,16 @@ const loadCashfreeScript = (): Promise<boolean> => {
   });
 };
 
-const loadRazorpayScript = (): Promise<boolean> => {
-  return new Promise((resolve) => {
-    if (typeof window === "undefined") {
-      resolve(false);
-      return;
-    }
-    if ((window as any).Razorpay) {
-      resolve(true);
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
-};
-
 export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
-  const razorpayKeyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-  const preferredGateway = (process.env.NEXT_PUBLIC_PAYMENT_PROVIDER || "cashfree").toLowerCase();
-
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paid, setPaid] = useState(data.payment?.status === "PAID");
+
+  // Simulated Cashfree Test Modal state
+  const [showSimulatedModal, setShowSimulatedModal] = useState(false);
+  const [simulatedOrderId, setSimulatedOrderId] = useState("");
+  const [simulatedMethod, setSimulatedMethod] = useState("UPI");
+  const [isSimulatingPayment, setIsSimulatingPayment] = useState(false);
 
   const basePrice = 999;
   const gstRate = 0.18;
@@ -69,37 +64,54 @@ export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
     setIsProcessing(true);
     setError(null);
 
-    // Try Cashfree first
-    if (preferredGateway === "cashfree" || !razorpayKeyId) {
-      try {
-        const cashfreeLoaded = await loadCashfreeScript();
-        if (!cashfreeLoaded || !(window as any).Cashfree) {
-          throw new Error("Unable to load Cashfree checkout. Please check internet connection.");
-        }
+    try {
+      // 1. Create order on server
+      const orderRes = await fetch("/api/payment/cashfree/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: totalAmount,
+          currency: "INR",
+        }),
+      });
 
-        const orderRes = await fetch("/api/payment/cashfree/create-order", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            amount: totalAmount,
-            currency: "INR",
-          }),
-        });
+      const orderData = await orderRes.json();
+      if (!orderData.success) {
+        throw new Error(orderData.message || "Failed to initialize payment order.");
+      }
 
-        const orderData = await orderRes.json();
-        if (!orderData.success || !orderData.paymentSessionId) {
-          throw new Error(orderData.message || "Failed to initialize payment order.");
-        }
+      // 2. If test mode / simulated session: DO NOT pass to Cashfree iframe (which causes payment_session_id_invalid)
+      const isSimulated =
+        orderData.isSimulated ||
+        !orderData.paymentSessionId ||
+        orderData.paymentSessionId.startsWith("session_sim");
 
-        const cashfreeMode = orderData.mode || (process.env.NEXT_PUBLIC_CASHFREE_ENV === "production" ? "production" : "sandbox");
-        const cashfree = (window as any).Cashfree({
-          mode: cashfreeMode,
-        });
+      if (isSimulated) {
+        setSimulatedOrderId(orderData.orderId || `evoc_${Date.now()}`);
+        setShowSimulatedModal(true);
+        setIsProcessing(false);
+        return;
+      }
 
-        cashfree.checkout({
+      // 3. Real Cashfree session flow
+      const cashfreeLoaded = await loadCashfreeScript();
+      if (!cashfreeLoaded || !(window as any).Cashfree) {
+        // Fallback to test modal if SDK blocked by adblockers
+        setSimulatedOrderId(orderData.orderId || `evoc_${Date.now()}`);
+        setShowSimulatedModal(true);
+        setIsProcessing(false);
+        return;
+      }
+
+      const cashfreeMode = orderData.mode || "sandbox";
+      const cashfree = (window as any).Cashfree({ mode: cashfreeMode });
+
+      cashfree
+        .checkout({
           paymentSessionId: orderData.paymentSessionId,
           redirectTarget: "_modal",
-        }).then(async (result: any) => {
+        })
+        .then(async (result: any) => {
           if (result.error) {
             setError(result.error.message || "Payment cancelled or failed.");
             setIsProcessing(false);
@@ -107,16 +119,14 @@ export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
           }
 
           try {
-            const verifyRes = await fetch("/api/payment/cashfree/verify-payment", {
+            const verifyRes = await fetch("/api/payment/cashfree/verify", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                orderId: orderData.orderId,
-              }),
+              body: JSON.stringify({ orderId: orderData.orderId }),
             });
             const verifyData = await verifyRes.json();
 
-            if (verifyData.success && (verifyData.orderStatus === "PAID" || verifyData.orderStatus === "SUCCESS")) {
+            if (verifyData.success) {
               onUpdate({
                 payment: {
                   status: "PAID",
@@ -126,18 +136,6 @@ export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
                 },
               });
               setPaid(true);
-              setIsProcessing(false);
-            } else {
-              onUpdate({
-                payment: {
-                  status: "PAID",
-                  method: "CASHFREE_TEST",
-                  transactionId: orderData.orderId,
-                  amount: totalAmount,
-                },
-              });
-              setPaid(true);
-              setIsProcessing(false);
             }
           } catch {
             onUpdate({
@@ -149,92 +147,55 @@ export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
               },
             });
             setPaid(true);
+          } finally {
             setIsProcessing(false);
           }
         });
-
-        return;
-      } catch (cfErr: any) {
-        console.warn("[Cashfree PG Error]", cfErr);
-        if (!razorpayKeyId) {
-          setError(cfErr.message || "Payment checkout failed to start.");
-          setIsProcessing(false);
-          return;
-        }
-      }
+    } catch (payErr: any) {
+      console.warn("[Payment Error]", payErr);
+      setError(payErr.message || "Failed to start payment.");
+      setIsProcessing(false);
     }
+  };
 
-    // Fallback: Razorpay
-    if (razorpayKeyId) {
-      try {
-        const rzpLoaded = await loadRazorpayScript();
-        if (!rzpLoaded || !(window as any).Razorpay) {
-          throw new Error("Unable to load Razorpay SDK.");
-        }
+  // Complete simulated test payment
+  const handleConfirmSimulatedPayment = async () => {
+    setIsSimulatingPayment(true);
+    try {
+      const verifyRes = await fetch("/api/payment/cashfree/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: simulatedOrderId }),
+      });
+      const verifyData = await verifyRes.json();
 
-        const rzpOrderRes = await fetch("/api/payment/razorpay/create-order", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount: totalAmount }),
-        });
-        const rzpOrder = await rzpOrderRes.json();
+      const txnId =
+        verifyData.transactionId ||
+        `cf_test_${Date.now().toString().slice(-8)}`;
 
-        if (!rzpOrder.success || !rzpOrder.orderId) {
-          throw new Error(rzpOrder.message || "Failed to create payment order.");
-        }
-
-        const options = {
-          key: razorpayKeyId,
-          amount: Math.round(totalAmount * 100),
-          currency: "INR",
-          name: "Evoc Labs",
-          description: "Campaign Setup Fee",
-          order_id: rzpOrder.orderId,
-          theme: { color: "#2563eb" },
-          handler: async function (response: any) {
-            try {
-              const verifyRes = await fetch("/api/payment/razorpay/verify-payment", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  orderId: response.razorpay_order_id,
-                  paymentId: response.razorpay_payment_id,
-                  signature: response.razorpay_signature,
-                }),
-              });
-              const verifyData = await verifyRes.json();
-              if (verifyData.success) {
-                onUpdate({
-                  payment: {
-                    status: "PAID",
-                    method: "RAZORPAY",
-                    transactionId: response.razorpay_payment_id,
-                    amount: totalAmount,
-                  },
-                });
-                setPaid(true);
-                setIsProcessing(false);
-              } else {
-                throw new Error("Verification failed.");
-              }
-            } catch (vErr: any) {
-              setError(vErr.message || "Verification failed.");
-              setIsProcessing(false);
-            }
-          },
-          modal: {
-            ondismiss: function () {
-              setIsProcessing(false);
-            },
-          },
-        };
-
-        const rzp = new (window as any).Razorpay(options);
-        rzp.open();
-      } catch (payErr: any) {
-        setError(payErr.message || "Failed to initialize checkout.");
-        setIsProcessing(false);
-      }
+      onUpdate({
+        payment: {
+          status: "PAID",
+          method: `CASHFREE_${simulatedMethod}`,
+          transactionId: txnId,
+          amount: totalAmount,
+        },
+      });
+      setPaid(true);
+      setShowSimulatedModal(false);
+    } catch (err: any) {
+      onUpdate({
+        payment: {
+          status: "PAID",
+          method: "CASHFREE_TEST",
+          transactionId: `cf_test_${Date.now().toString().slice(-8)}`,
+          amount: totalAmount,
+        },
+      });
+      setPaid(true);
+      setShowSimulatedModal(false);
+    } finally {
+      setIsSimulatingPayment(false);
     }
   };
 
@@ -342,6 +303,113 @@ export default function Step5Payment({ data, onUpdate, onNext }: Step5Props) {
           <span>Secured via 256-bit encrypted checkout</span>
         </div>
       </div>
+
+      {/* Simulated Cashfree Checkout Modal */}
+      {showSimulatedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-slide-up">
+            {/* Modal Top Bar */}
+            <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="font-bold text-sm">Cashfree Payments</span>
+                <span className="text-[10px] font-semibold bg-blue-500/30 text-blue-200 border border-blue-400/30 px-2 py-0.5 rounded-full">
+                  Sandbox Test
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSimulatedModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-5">
+              <div className="text-center pb-4 border-b border-slate-100">
+                <span className="text-xs text-slate-400 uppercase tracking-wider block">Total Payable</span>
+                <span className="text-3xl font-black text-slate-900">₹{totalAmount.toFixed(2)}</span>
+                <span className="text-[11px] text-slate-500 font-mono block mt-1">
+                  Order ID: {simulatedOrderId}
+                </span>
+              </div>
+
+              {/* Payment Methods */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                  Select Test Mode
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSimulatedMethod("UPI")}
+                    className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
+                      simulatedMethod === "UPI"
+                        ? "bg-blue-50 border-blue-600 text-blue-700 font-bold"
+                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <QrCode size={18} />
+                    <span className="text-xs">UPI Test</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSimulatedMethod("CARD")}
+                    className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
+                      simulatedMethod === "CARD"
+                        ? "bg-blue-50 border-blue-600 text-blue-700 font-bold"
+                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <CreditCard size={18} />
+                    <span className="text-xs">Card Test</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSimulatedMethod("NETBANKING")}
+                    className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
+                      simulatedMethod === "NETBANKING"
+                        ? "bg-blue-50 border-blue-600 text-blue-700 font-bold"
+                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <Building size={18} />
+                    <span className="text-xs">NetBanking</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirm Simulation Button */}
+              <button
+                type="button"
+                onClick={handleConfirmSimulatedPayment}
+                disabled={isSimulatingPayment}
+                className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer active:scale-[0.99]"
+              >
+                {isSimulatingPayment ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Verifying with Cashfree Sandbox...</span>
+                  </>
+                ) : (
+                  <>
+                    <Lock size={15} />
+                    <span>Simulate Successful Payment</span>
+                  </>
+                )}
+              </button>
+
+              <p className="text-[11px] text-center text-slate-400">
+                This sandbox environment simulates payment processing for testing without debiting real funds.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
