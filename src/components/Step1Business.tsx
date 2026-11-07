@@ -27,6 +27,14 @@ export default function Step1Business({ data, onUpdate, onNext }: Step1Props) {
       phoneNumber: cleanPhone,
       businessName: data.businessName || `Brand (${cleanPhone.slice(-4)})`,
     });
+
+    // Asynchronously record user as a drop-off lead in admin under companion
+    fetch("/api/track-step1", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phoneNumber: cleanPhone }),
+    }).catch((err) => console.warn("Step 1 lead tracking:", err));
+
     onNext();
   };
 

@@ -44,6 +44,7 @@ export async function POST(req: Request) {
       },
       adAccountStatus: payload.adAccount || payload.adAccountStatus || {},
       creativePreference: payload.creative || payload.creativePreference || {},
+      intakeStatus: "COMPLETED",
       createdAt: new Date().toISOString(),
     };
 
@@ -51,7 +52,17 @@ export async function POST(req: Request) {
     try {
       ensureStorageDir();
       const existingRaw = fs.readFileSync(LOCAL_STORAGE_FILE, "utf8");
-      const list = JSON.parse(existingRaw || "[]");
+      let list = JSON.parse(existingRaw || "[]");
+
+      // Remove any prior incomplete drop-off for this phone number
+      list = list.filter(
+        (item: any) =>
+          !(
+            item.phoneNumber === campaignRecord.phoneNumber &&
+            item.intakeStatus === "LEFT_USER"
+          )
+      );
+
       list.unshift(campaignRecord);
       fs.writeFileSync(LOCAL_STORAGE_FILE, JSON.stringify(list, null, 2), "utf8");
     } catch (saveErr) {
@@ -86,6 +97,7 @@ export async function POST(req: Request) {
       target: JSON.stringify(campaignRecord.audience),
       metadata: {
         source: "EvocCompanion",
+        intakeStatus: "COMPLETED",
         campaignRef: referenceId,
         payment: campaignRecord.payment,
         websiteAnalysis: campaignRecord.websiteAnalysis,
