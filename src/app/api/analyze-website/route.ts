@@ -1,5 +1,18 @@
 import { NextResponse } from "next/server";
 
+function cleanHtmlText(str: string): string {
+  if (!str) return "";
+  return str
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 interface ExtractedDetails {
   domain: string;
   brandName: string;
@@ -158,13 +171,14 @@ export async function POST(req: Request) {
       console.warn("[analyze-website] Live scrape note:", scrapeErr.message);
     }
 
-    // Clean brand name
-    const finalBrandName = ogSiteName || fallbackBrand;
-    const finalTitle = ogTitle || pageTitle || `${finalBrandName} Online Store`;
-    const finalDesc =
+    // Clean brand name and metadata with HTML entity decoding
+    const finalBrandName = cleanHtmlText(ogSiteName || fallbackBrand);
+    const finalTitle = cleanHtmlText(ogTitle || pageTitle || `${finalBrandName} Online Store`);
+    const finalDesc = cleanHtmlText(
       ogDescription ||
       metaDescription ||
-      `${finalBrandName} provides curated products and specialized solutions engineered for measurable customer value.`;
+      `${finalBrandName} provides curated products and specialized solutions engineered for measurable customer value.`
+    );
 
     const combinedText = `${finalTitle} ${finalDesc} ${headings.join(" ")}`.toLowerCase();
 
