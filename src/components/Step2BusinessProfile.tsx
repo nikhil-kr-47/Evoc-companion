@@ -1,14 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import { ArrowRight, Building2, User, Mail, Sparkles, ShieldCheck } from "lucide-react";
+import { ArrowRight, Building2, User, Sparkles, ShieldCheck } from "lucide-react";
 
 interface Step2BusinessProfileProps {
   data: {
     phoneNumber: string;
     businessName: string;
     contactPerson: string;
-    email?: string;
   };
   onUpdate: (fields: Partial<Step2BusinessProfileProps["data"]>) => void;
   onNext: () => void;
@@ -41,7 +40,6 @@ export default function Step2BusinessProfile({
     onUpdate({
       businessName: cleanBizName,
       contactPerson: cleanOwner,
-      email: data.email?.trim() || "",
     });
 
     // Update drop-off lead in admin with business & owner details
@@ -52,7 +50,6 @@ export default function Step2BusinessProfile({
         phoneNumber: data.phoneNumber,
         businessName: cleanBizName,
         contactPerson: cleanOwner,
-        email: data.email?.trim() || "",
         stepReached: 2,
       }),
     }).catch((err) => console.warn("Step 2 lead update:", err));
@@ -129,31 +126,6 @@ export default function Step2BusinessProfile({
                 className="w-full px-2 py-3 bg-transparent text-slate-900 placeholder:text-slate-400 text-sm sm:text-base font-medium outline-none"
               />
             </div>
-          </div>
-
-          {/* Optional Email Address */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                Work Email Address
-              </label>
-              <span className="text-[11px] font-semibold text-slate-400">Optional</span>
-            </div>
-            <div className="flex items-center rounded-xl bg-slate-50/50 border border-slate-300 focus-within:border-blue-600 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 transition-all shadow-xs">
-              <span className="pl-3.5 pr-2 text-slate-400 flex items-center">
-                <Mail size={17} />
-              </span>
-              <input
-                type="email"
-                placeholder="e.g. founder@yourbrand.com"
-                value={data.email || ""}
-                onChange={(e) => onUpdate({ email: e.target.value })}
-                className="w-full px-2 py-3 bg-transparent text-slate-900 placeholder:text-slate-400 text-sm sm:text-base font-medium outline-none"
-              />
-            </div>
-            <p className="text-[11px] text-slate-500">
-              For GST invoice copy and official campaign performance reports.
-            </p>
           </div>
 
           {/* Action Button */}
