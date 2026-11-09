@@ -12,13 +12,15 @@ interface HeaderProps {
 
 const STEP_LABELS: Record<number, string> = {
   1: "Mobile",
-  2: "Goal",
-  3: "Industry",
-  4: "Website",
-  5: "Audience",
-  6: "Payment",
-  7: "Ad Access",
-  8: "Creatives",
+  2: "Business",
+  3: "Goal",
+  4: "Industry",
+  5: "Website",
+  6: "Audience",
+  7: "Budget",
+  8: "Payment",
+  9: "Ad Access",
+  10: "Creatives",
 };
 
 export default function Header({
@@ -27,7 +29,7 @@ export default function Header({
   stepTitle,
   onBack,
 }: HeaderProps) {
-  const activeStepsCount = totalSteps - 1; // Step 9 is confirmation screen
+  const activeStepsCount = totalSteps - 1; // Step 11 is confirmation screen
   const steps = Array.from({ length: activeStepsCount }, (_, i) => i + 1);
   const progressPercent = Math.min(
     100,
@@ -85,7 +87,7 @@ export default function Header({
 
       {/* Creative Section Progress: Connected Stepper */}
       {currentStep < totalSteps && (
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 pb-3 pt-1">
+        <div className="max-w-2xl mx-auto px-3 sm:px-6 pb-2.5 pt-1">
           {/* Stepper Nodes */}
           <div className="flex items-center justify-between">
             {steps.map((step, idx) => {
@@ -96,23 +98,23 @@ export default function Header({
                 <React.Fragment key={step}>
                   <div className="flex flex-col items-center">
                     <div
-                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all duration-200 ${
+                      className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[9px] sm:text-[10px] font-bold transition-all duration-200 ${
                         isCompleted
                           ? "bg-emerald-500 text-white shadow-xs"
                           : isCurrent
-                          ? "bg-blue-600 text-white ring-4 ring-blue-100 shadow-sm shadow-blue-500/30 scale-105"
+                          ? "bg-blue-600 text-white ring-3 sm:ring-4 ring-blue-100 shadow-sm shadow-blue-500/30 scale-105"
                           : "bg-slate-100 text-slate-400 border border-slate-200/80"
                       }`}
                     >
                       {isCompleted ? (
-                        <Check size={12} strokeWidth={3} />
+                        <Check size={11} strokeWidth={3} />
                       ) : (
                         <span>{step}</span>
                       )}
                     </div>
                     {/* Step label on larger screens */}
                     <span
-                      className={`hidden md:block text-[10px] mt-1 font-medium tracking-tight whitespace-nowrap transition-colors ${
+                      className={`hidden md:block text-[9px] mt-1 font-medium tracking-tight whitespace-nowrap transition-colors ${
                         isCurrent
                           ? "text-blue-600 font-bold"
                           : isCompleted
@@ -125,7 +127,7 @@ export default function Header({
                   </div>
 
                   {idx < steps.length - 1 && (
-                    <div className="flex-1 mx-1 sm:mx-2 h-0.5 relative rounded-full bg-slate-100 overflow-hidden">
+                    <div className="flex-1 mx-0.5 sm:mx-1.5 h-0.5 relative rounded-full bg-slate-100 overflow-hidden">
                       <div
                         className={`h-full transition-all duration-300 ${
                           step < currentStep ? "bg-emerald-500 w-full" : "w-0"

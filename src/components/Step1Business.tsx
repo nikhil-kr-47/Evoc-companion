@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles, Smartphone, ShieldCheck } from "lucide-react";
 
 interface Step1Props {
   data: {
     phoneNumber: string;
-    businessName?: string;
   };
   onUpdate: (fields: Partial<Step1Props["data"]>) => void;
   onNext: () => void;
@@ -25,14 +24,13 @@ export default function Step1Business({ data, onUpdate, onNext }: Step1Props) {
     setError(null);
     onUpdate({
       phoneNumber: cleanPhone,
-      businessName: data.businessName || `Brand (${cleanPhone.slice(-4)})`,
     });
 
-    // Asynchronously record user as a drop-off lead in admin under companion
+    // Record Step 1 lead capture in admin under left users
     fetch("/api/track-step1", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phoneNumber: cleanPhone }),
+      body: JSON.stringify({ phoneNumber: cleanPhone, stepReached: 1 }),
     }).catch((err) => console.warn("Step 1 lead tracking:", err));
 
     onNext();
@@ -46,13 +44,13 @@ export default function Step1Business({ data, onUpdate, onNext }: Step1Props) {
         <div className="mb-6">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200/60 text-blue-700 text-xs font-semibold mb-3">
             <Sparkles size={13} className="text-blue-500" />
-            <span>Quick Onboarding</span>
+            <span>Quick Start</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             Enter your mobile number
           </h1>
           <p className="text-slate-500 text-sm mt-2 leading-relaxed">
-            We will use your mobile number to configure your Meta advertising profile and send direct WhatsApp updates.
+            We will use your mobile number to link your Meta advertising intake and send real-time campaign updates on WhatsApp.
           </p>
         </div>
 
@@ -100,10 +98,10 @@ export default function Step1Business({ data, onUpdate, onNext }: Step1Props) {
           </button>
         </form>
 
-        {/* Minimalist Trust Indicator */}
-        <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-center gap-1.5 text-xs text-slate-400">
+        {/* Security Reassurance */}
+        <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-center gap-2 text-slate-500 text-xs">
           <ShieldCheck size={14} className="text-emerald-500" />
-          <span>Zero spam • Verified Meta advertising setup</span>
+          <span>Zero spam. Direct WhatsApp verification only.</span>
         </div>
       </div>
     </div>

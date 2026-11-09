@@ -36,6 +36,12 @@ export async function POST(req: Request) {
       websiteAnalysis: payload.website?.aiAnalysis || payload.websiteAnalysis || null,
       businessDescription: payload.website?.elaboration || payload.businessDescription || "",
       audience: payload.audience || {},
+      budget: payload.budget || {
+        type: "RECOMMENDED",
+        dailyBudget: 1000,
+        monthlyEstimate: 30000,
+        tierName: "Scale Advantage",
+      },
       payment: payload.payment || {
         amount: 1178.82,
         base: 999,
@@ -99,6 +105,7 @@ export async function POST(req: Request) {
         source: "EvocCompanion",
         intakeStatus: "COMPLETED",
         campaignRef: referenceId,
+        budget: campaignRecord.budget,
         payment: campaignRecord.payment,
         websiteAnalysis: campaignRecord.websiteAnalysis,
         adAccountStatus: campaignRecord.adAccountStatus,

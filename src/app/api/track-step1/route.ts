@@ -16,7 +16,8 @@ function ensureStorageDir() {
 
 export async function POST(req: Request) {
   try {
-    const { phoneNumber } = await req.json();
+    const body = await req.json();
+    const { phoneNumber, businessName, contactPerson, email, stepReached = 1 } = body;
 
     if (!phoneNumber) {
       return NextResponse.json(
@@ -33,15 +34,21 @@ export async function POST(req: Request) {
       );
     }
 
+    const resolvedBusiness = businessName?.trim() || `Lead (${cleanPhone.slice(-4)})`;
+    const resolvedContact = contactPerson?.trim() || (stepReached === 1 ? "Drop-off Visitor" : `Lead (${cleanPhone.slice(-4)})`);
+
     const dropoffRecord = {
       referenceId: `EVOC-DROP-${cleanPhone.slice(-4)}-${Date.now().toString().slice(-4)}`,
-      businessName: `Lead (${cleanPhone.slice(-4)})`,
-      contactPerson: "Drop-off Visitor",
+      businessName: resolvedBusiness,
+      contactPerson: resolvedContact,
       phoneNumber: cleanPhone,
+      email: email?.trim() || "",
       formType: "MetaAdsLaunchpad",
       status: "LEADS",
       intakeStatus: "LEFT_USER",
+      stepReached,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     // 1. Local backup save
@@ -50,15 +57,20 @@ export async function POST(req: Request) {
       const existingRaw = fs.readFileSync(LOCAL_STORAGE_FILE, "utf8");
       const list = JSON.parse(existingRaw || "[]");
 
-      // Check if this phone already exists in local list
       const existingIdx = list.findIndex(
         (item: any) => item.phoneNumber === cleanPhone
       );
 
       if (existingIdx >= 0) {
-        // Only update if it was still a left user
         if (list[existingIdx].intakeStatus === "LEFT_USER") {
-          list[existingIdx].updatedAt = new Date().toISOString();
+          list[existingIdx] = {
+            ...list[existingIdx],
+            businessName: resolvedBusiness,
+            contactPerson: resolvedContact,
+            email: email?.trim() || list[existingIdx].email,
+            stepReached: Math.max(list[existingIdx].stepReached || 1, stepReached),
+            updatedAt: new Date().toISOString(),
+          };
         }
       } else {
         list.unshift(dropoffRecord);
@@ -83,17 +95,20 @@ export async function POST(req: Request) {
           headers: { "Content-Type": "application/json" },
           signal: controller.signal,
           body: JSON.stringify({
-            name: `Left User (${cleanPhone.slice(-4)})`,
-            companyName: `Lead (${cleanPhone.slice(-4)})`,
+            name: resolvedContact,
+            companyName: resolvedBusiness,
             phoneNumber: cleanPhone,
+            email: email?.trim() || undefined,
             formType: "MetaAdsLaunchpad",
-            message: "User entered mobile number at Step 1 and dropped off before completing intake.",
+            message: `User reached Step ${stepReached} (${stepReached >= 2 ? "Business & Owner Entered" : "Mobile Entered"}) and dropped off before completing intake.`,
             status: "LEADS",
             metadata: {
               source: "EvocCompanion",
               intakeStatus: "LEFT_USER",
-              stepReached: 1,
+              stepReached,
               droppedAt: new Date().toISOString(),
+              businessName: resolvedBusiness,
+              contactPerson: resolvedContact,
             },
           }),
         });
@@ -107,6 +122,8 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       phoneNumber: cleanPhone,
+      businessName: resolvedBusiness,
+      contactPerson: resolvedContact,
       orbitSynced,
     });
   } catch (err: any) {
